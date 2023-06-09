@@ -1,20 +1,26 @@
 $(function () {
-  const amenitiesChecked = {}, statesChecked = {}, citiesChecked = {};
+  const amenitiesChecked = {}; const statesChecked = {}; const citiesChecked = {};
   const apiUrl = 'http://127.0.0.1:5001/api/v1';
 
-  $('.amenities input:checkbox').change(function (event) {
-    if ($(this).is(':checked')) {
-      // store the Amenity ID in the list
-      amenitiesChecked[$(this).data('id')] = $(this).data('name');
-      updateCheckedAmenitiesInterface();
-    } else {
-      // remove the Amenity ID from the list
-      delete amenitiesChecked[$(this).data('id')];
-      updateCheckedAmenitiesInterface();
-    }
-  });
+  /**
+   * Update list of a resource when the user selects or deselects a checkbox.
+   */
+  const handleFilterListChange = (checkbox, updatable, updater) => {
+    $(checkbox).change(function (event) {
+      if ($(this).is(':checked')) {
+        // store the City ID in the list
+        updatable[$(this).data('id')] = $(this).data('name');
+      } else {
+        // remove the City ID from the list
+        delete updatable[$(this).data('id')];
+      }
+      updater();
+    });
+  };
 
-  // update the h4 tag inside div Amenities with list of Amenities checked
+  /**
+   * Update the h4 tag inside div Amenities with list of Amenities checked.
+   */
   const updateCheckedAmenitiesInterface = () => {
     const length = Object.keys(amenitiesChecked).length;
     let content = ''; let i = 0;
@@ -31,30 +37,28 @@ $(function () {
     $('.amenities h4').text(content);
   };
 
-  $.get(`${apiUrl}/status`,
-    function (data, textStatus, jqXHR) {
-      if (data.status === 'OK') {
-        $('div#api_status').addClass('available');
-      } else {
-        $('div#api_status').removeClass('available');
+  /**
+   * Update the h4 tag inside div locations with list of checked items.
+   */
+  const updateCheckedLocationsInterface = () => {
+    const length = Object.keys(citiesChecked).length + Object.keys(statesChecked).length;
+    let content = ''; let i = 0;
+
+    for (const location of [...Object.values(citiesChecked), ...Object.values(statesChecked)]) {
+      const last = i === length - 1;
+      content += location;
+      if (!last) {
+        content += ', ';
       }
+      i++;
     }
-  );
 
-  $.ajax({
-    url: `${apiUrl}/places_search`,
-    type: 'POST',
-    contentType: 'application/json',
-    dataType: 'json',
-    data: JSON.stringify({}),
-    success: function (data, textStatus, jqXHR) {
-      displayPlaces(data);
-    },
-    error: function (jqXHR, textStatus, errorThrown) {
-      console.log(errorThrown);
-    }
-  });
+    $('.locations h4').text(content);
+  };
 
+  /**
+   * Update the DOM with the filtered places result.
+   */
   const displayPlaces = (places) => {
     $('section.places').html('');
 
@@ -83,17 +87,16 @@ $(function () {
     }
   };
 
-  $('button').click(event => {
-    const amenities = Object.keys(amenitiesChecked);
-    const states = Object.keys(statesChecked);
-    const cities = Object.keys(citiesChecked);
-
+  /**
+   * Make an AJAX POST request to /places_search endpoint of my api.
+   */
+  const requestPlaces = params => {
     $.ajax({
       url: `${apiUrl}/places_search`,
       type: 'POST',
       contentType: 'application/json',
       dataType: 'json',
-      data: JSON.stringify({ amenities, states, cities }),
+      data: JSON.stringify(params),
       success: function (data, textStatus, jqXHR) {
         displayPlaces(data);
       },
@@ -101,46 +104,34 @@ $(function () {
         console.log(errorThrown);
       }
     });
-  });
-
-  $('.locations ul:nth-of-type(1) input:checkbox').change(function (event) {
-    if ($(this).is(':checked')) {
-      // store the State ID in the list
-      statesChecked[$(this).data('id')] = $(this).data('name');
-      updateCheckedLocationsInterface();
-    } else {
-      // remove the State ID from the list
-      delete statesChecked[$(this).data('id')];
-      updateCheckedLocationsInterface();
-    }
-  });
-
-  $('.locations ul:nth-of-type(2) input:checkbox').change(function (event) {
-    if ($(this).is(':checked')) {
-      // store the City ID in the list
-      citiesChecked[$(this).data('id')] = $(this).data('name');
-      updateCheckedLocationsInterface();
-    } else {
-      // remove the City ID from the list
-      delete citiesChecked[$(this).data('id')];
-      updateCheckedLocationsInterface();
-    }
-  });
-
-  // update the h4 tag inside div locations with list of checked items
-  const updateCheckedLocationsInterface = () => {
-    const length = Object.keys(citiesChecked).length + Object.keys(statesChecked).length;
-    let content = ''; let i = 0;
-
-    for (const location of [...Object.values(citiesChecked), ...Object.values(statesChecked)]) {
-      const last = i === length - 1;
-      content += location;
-      if (!last) {
-        content += ', ';
-      }
-      i++;
-    }
-
-    $('.locations h4').text(content);
   };
+
+  handleFilterListChange('.amenities input:checkbox', amenitiesChecked,
+    updateCheckedAmenitiesInterface);
+
+  $.get(`${apiUrl}/status`,
+    function (data, textStatus, jqXHR) {
+      if (data.status === 'OK') {
+        $('div#api_status').addClass('available');
+      } else {
+        $('div#api_status').removeClass('available');
+      }
+    }
+  );
+
+  requestPlaces({});
+
+  $('button').click(event => {
+    const amenities = Object.keys(amenitiesChecked);
+    const states = Object.keys(statesChecked);
+    const cities = Object.keys(citiesChecked);
+
+    requestPlaces({ amenities, states, cities });
+  });
+
+  handleFilterListChange('.locations ul:nth-of-type(1) input:checkbox',
+    statesChecked, updateCheckedLocationsInterface);
+
+  handleFilterListChange('.locations ul:nth-of-type(2) input:checkbox',
+    citiesChecked, updateCheckedLocationsInterface);
 });
